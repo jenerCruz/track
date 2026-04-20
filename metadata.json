@@ -1,0 +1,6 @@
+{
+  "name": "Tracker de Ingreso PWA",
+  "description": "Sistema de registro de asistencia con QR/NFC, detección de anomalías y geolocalización.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": []
+}

@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - displayName: string
+    //   - role: string (admin, employee)
+    //   - deviceId: string
+    //   - homeLocation: map {lat: number, lng: number}
+    //   - createdAt: timestamp
+    //
+    // Collection: attendance
+    // Document ID: auto-generated
+    // Fields:
+    //   - uid: string (required)
+    //   - type: string (clock-in, lunch-out, lunch-in, clock-out)
+    //   - timestamp: timestamp
+    //   - location: map {lat: number, lng: number}
+    //   - deviceId: string
+    //   - isAnomaly: bool
+    //   - anomalyReason: string
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "pamecoaxaca.telcel@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid == request.auth.uid &&
+             data.email == request.auth.token.email &&
+             data.role in ['admin', 'employee', 'pending-admin'] &&
+             (!('deviceId' in data) || data.deviceId is string) &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100));
+    }
+
+    function isValidAttendance(data) {
+      return data.keys().hasAll(['uid', 'type', 'timestamp', 'deviceId']) &&
+             data.uid == request.auth.uid &&
+             data.type in ['clock-in', 'lunch-out', 'lunch-in', 'clock-out'] &&
+             data.timestamp is timestamp &&
+             data.deviceId is string &&
+             (!('anomalyReason' in data) || (data.anomalyReason is string && data.anomalyReason.size() < 500));
+    }
+
+    function isValidTask(data) {
+      return data.keys().hasAll(['title', 'description', 'assignedTo', 'priority', 'status', 'createdBy', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 &&
+             data.assignedTo is string &&
+             data.priority in ['low', 'medium', 'high'] &&
+             data.status in ['todo', 'in-progress', 'done'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role in ['employee', 'pending-admin'] || isAdmin());
+      allow update: if (isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin();
+    }
+
+    match /attendance/{logId} {
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidAttendance(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated() && (resource.data.assignedTo == request.auth.uid || isAdmin());
+      allow create: if isAdmin();
+      allow update: if isAuthenticated() && (resource.data.assignedTo == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+  }
+}

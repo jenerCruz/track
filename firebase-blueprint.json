@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Employee or Admin profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "employee"] },
+        "deviceId": { "type": "string", "description": "Registered unique device ID" },
+        "homeLocation": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "AttendanceLog": {
+      "title": "Attendance Log",
+      "description": "A single clock-in/out event",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "type": { "type": "string", "enum": ["clock-in", "lunch-out", "lunch-in", "clock-out"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "deviceId": { "type": "string" },
+        "isAnomaly": { "type": "boolean" },
+        "anomalyReason": { "type": "string" }
+      },
+      "required": ["uid", "type", "timestamp", "deviceId"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/attendance/{logId}": {
+      "schema": "AttendanceLog",
+      "description": "Attendance event logs"
+    }
+  }
+}
